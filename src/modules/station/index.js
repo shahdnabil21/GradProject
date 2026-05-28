@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { isAuthenticated } from "../../middleware/authentication.middleware.js";
-import { isAdmin }          from "../../middleware/admin.middleware.js";
+// import { isAuthenticated } from "../../middleware/authentication.middleware.js";
+// import { isAdmin }          from "../../middleware/admin.middleware.js";
 
 // import { protect } from '../auth/auth.controller.js';
 import {
@@ -13,8 +13,8 @@ import {
 
 const router = Router();
 
-router.use(isAuthenticated);
-router.use(isAdmin);
+// router.use(isAuthenticated);
+// router.use(isAdmin);
 
 router
   .route('/')
