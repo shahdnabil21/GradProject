@@ -3,7 +3,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 
-export const port = process.env.PORT || 8080;
+// export const port = process.env.PORT || 8080;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = dirname(__filename);
@@ -12,6 +12,6 @@ export const NODE_ENV = process.env.NODE_ENV || 'development';
 const envFile = resolve(__dirname, `.env.${NODE_ENV}`);
 
 dotenv.config({ path: envFile });
-export const port = process.env.PORT || 3000;
+export const port = process.env.PORT || 8080;
 console.log(`⚙️  Config loaded: .env.${NODE_ENV}`);
 
