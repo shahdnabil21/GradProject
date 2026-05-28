@@ -1,0 +1,11 @@
+export { default as authRouter } from './auth/index.js';
+export { default as userRouter } from './user/index.js';
+export { default as stationRouter } from './station/index.js';
+export { default as lineRouter } from './lines/index.js';
+export { default as lineStationRouter } from './lineStations/index.js';
+export {default as ticketRouter } from './tickets/index.js';
+export { default as paymentRouter } from './payment/index.js';
+export { default as mapRouter } from './map/index.js';
+export { default as dashboardRouter }    from './dashboard/index.js';
+export { default as subscriptionRouter } from './subscription/index.js';
+export { default as walletRouter } from './wallet/index.js';

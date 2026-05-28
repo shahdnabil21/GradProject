@@ -1,0 +1,22 @@
+[
+    {
+        "name":"Yellow Ticket",
+        "numberOfStations": 9,
+        "price": 10
+    },
+    {
+        "name":"Green Ticket",
+        "numberOfStations": 16,
+        "price": 12
+    },
+    {
+        "name":"Pink Ticket",
+        "numberOfStations": 23,
+        "price": 15
+    },
+    {
+        "name":"Light Pink Ticket",
+        "numberOfStations": 100,
+        "price": 20
+    }
+]
