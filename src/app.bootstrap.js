@@ -86,7 +86,10 @@ app.use((error, req, res, next) => {
      });
    });
 
-   httpServer.listen(port, () => console.log(`🚀 App running on port ${port}...`));
-   return httpServer;
+  //  httpServer.listen(port, () => console.log(`🚀 App running on port ${port}...`));
+  //  return httpServer;
+  httpServer.listen(port, "0.0.0.0", () => {
+  console.log(`🚀 WebServer & WebSockets actively listening on 0.0.0.0:${port}`);
+});
 }
 export default bootstrap
