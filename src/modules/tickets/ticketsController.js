@@ -1,4 +1,4 @@
-
+import { Ticket } from '../../DB/model/index.js';
 import {
   buyTicketService,
   buySmartTicketService,
@@ -15,8 +15,8 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 export const buyTicket = async (req, res) => {
   try {
-    // TODO: switch to req.user._id once auth middleware is active
-    const { userId, categoryId } = req.body;
+    const userId = req.user?._id || req.user?.id || req.body.userId;
+    const { categoryId } = req.body;
 
     if (!userId || !categoryId) {
       return res.status(400).json({ message: 'userId and categoryId are required' });
@@ -38,8 +38,8 @@ export const buyTicket = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 export const buySmartTicket = async (req, res) => {
   try {
-    // TODO: switch to req.user._id once auth middleware is active
-    const { userId, fromStationId, toStationId } = req.body;
+    const userId = req.user?._id || req.user?.id || req.body.userId;
+    const { fromStationId, toStationId } = req.body;
 
     if (!userId || !fromStationId || !toStationId) {
       return res.status(400).json({ message: 'userId, fromStationId and toStationId are required' });
@@ -61,11 +61,10 @@ export const buySmartTicket = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 export const getMyTickets = async (req, res) => {
   try {
-    // TODO: switch to req.user._id once auth middleware is active
-    const { userId } = req.query;
+    const userId = req.user?._id || req.user?.id || req.query.userId;
 
     if (!userId) {
-      return res.status(400).json({ message: 'userId is required' });
+      return res.status(400).json({ message: 'userId is required or user is not authenticated' });
     }
 
     const tickets = await getMyTicketsService(userId);

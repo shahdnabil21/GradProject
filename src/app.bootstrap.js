@@ -21,7 +21,9 @@ function bootstrap() {
 
     const app = express()
 
-    app.use(helmet());
+    app.use(helmet({
+      contentSecurityPolicy: false
+    }));
     //convert buffer data
     app.use(express.json())
       app.use(express.urlencoded({ extended: true }));
@@ -58,38 +60,40 @@ function bootstrap() {
 
     //===============ERROR-HANDLING==================
 
-// ——————— use statusCode from AppError  ————————
+// ——————— Global Error Handling Middleware ————————
 app.use((error, req, res, next) => {
-  const statusCode = error.statusCode ?? 500;
-  const status = error.status ?? 'error';
+  let statusCode = error.statusCode ?? 500;
+  let status = error.status ?? 'error';
+  let message = error.message;
+
+  // Gracefully handle MongoDB duplicate key errors (e.g., duplicate email)
+  if (error.code === 11000) {
+    statusCode = 409;
+    status = 'fail';
+    const field = error.keyValue ? Object.keys(error.keyValue)[0] : 'field';
+    message = `An account with this ${field} already exists.`;
+  }
+
+  // Gracefully handle JWT verification errors
+  if (error.name === 'JsonWebTokenError') {
+    statusCode = 401;
+    status = 'fail';
+    message = 'Invalid authentication token. Please log in again.';
+  }
+  if (error.name === 'TokenExpiredError') {
+    statusCode = 401;
+    status = 'fail';
+    message = 'Your session has expired. Please log in again.';
+  }
   
   return res.status(statusCode).json({
     status,
-    message: error.message,
-    stack: NODE_ENV == "development" ? error.stack : undefined
+    message,
+    stack: NODE_ENV === "development" ? error.stack : undefined
   });
 });
 
 
-   const httpServer = createServer(app);
-
-   const io = new Server(httpServer, {
-     cors: { origin: 'http://localhost:5173' },
-   });
-
-   setIO(io);
-
-   io.on('connection', (socket) => {
-     socket.on('join:ticket', (ticketId) => {
-       socket.join(ticketId);
-       console.log(`Client joined ticket room: ${ticketId}`);
-     });
-   });
-
-  //  httpServer.listen(port, () => console.log(`🚀 App running on port ${port}...`));
-  //  return httpServer;
-  httpServer.listen(port, "0.0.0.0", () => {
-  console.log(`🚀 WebServer & WebSockets actively listening on 0.0.0.0:${port}`);
-});
-}
+    return app;
+};
 export default bootstrap

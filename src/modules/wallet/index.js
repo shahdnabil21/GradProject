@@ -18,7 +18,7 @@ const router = Router();
 
 const chargeSchema = Joi.object({
     amount: Joi.number()
-        .min(50)
+        .min(15)
         .max(5000)
         .required()
         .messages({

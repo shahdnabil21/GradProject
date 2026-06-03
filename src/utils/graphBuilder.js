@@ -4,7 +4,7 @@ export async function buildMetroGraph() {
   const lineStations = await LineStation.find({}).sort({ order: 1 }).lean();
 
   if (!lineStations.length) {
-    console.warn('[GraphBuilder] No LineStation records found in DB.');
+    // console.warn('[GraphBuilder] No LineStation records found in DB.');
     return {};
   }
 

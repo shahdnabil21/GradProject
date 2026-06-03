@@ -1,23 +1,38 @@
 import '../config/config.service.js';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import { setIO } from './utils/socket.js';
+import { port } from '../config/config.service.js';
 import bootstrap from './app.bootstrap.js';
 import { connectDB } from './DB/connection.db.js';
 
+// 🛡️ Catch synchronous crashes (from your colleague's server.js)
 process.on('uncaughtException', err => {
   console.log('UNCAUGHT EXCEPTION! 💥 Shutting down...');
   console.log(err.name, err.message);
   process.exit(1);
 });
 
-// 🚀 Boot the Express server immediately so Railway proxy connects successfully!
-const server = bootstrap();
+// 🔌 Connect to MongoDB then start the Express server
+await connectDB();
+const app = bootstrap();
 
-// 🔌 Connect to MongoDB in the background without blocking the port bind
-connectDB().then(() => {
-  console.log('📬 Background DB Routing Verified.');
-}).catch(err => {
-  console.error('💥 Background DB Connection Failed:', err.message);
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: { origin: '*' },
+});
+setIO(io);
+
+io.on('connection', (socket) => {
+  socket.on('join:ticket', (ticketId) => {
+    socket.join(ticketId);
+    console.log(`Client joined ticket room: ${ticketId}`);
+  });
 });
 
+const server = httpServer.listen(port, () => console.log(`🚀 App running on port ${port}...`));
+
+// 🛡️ Catch async crashes (from your colleague's server.js)
 process.on('unhandledRejection', err => {
   console.log('UNHANDLED REJECTION! 💥 Shutting down...');
   console.log(err.name, err.message);
@@ -25,3 +40,7 @@ process.on('unhandledRejection', err => {
     process.exit(1);
   });
 });
+
+
+
+

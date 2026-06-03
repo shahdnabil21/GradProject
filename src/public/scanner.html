@@ -128,8 +128,6 @@
   </header>
 
   <main>
-
-    <!-- ── MODE + STATION (always visible) ── -->
     <div>
       <p class="field-label" style="margin-bottom:8px">Scan Mode</p>
       <div class="mode-row">
@@ -145,40 +143,49 @@
       </select>
     </div>
 
-    <!-- ── SCANNING STATE ── -->
     <div id="scanning-section" class="section">
       <p class="scan-hint">Point the camera at a ticket QR code</p>
       <div id="reader"></div>
     </div>
 
-    <!-- ── WAITING FOR STATION ── -->
     <div id="waiting-section" class="section active">
       <div class="notice">Select a station above before scanning.</div>
     </div>
 
-    <!-- ── LOADING STATE ── -->
     <div id="loading-section" class="section">
       <div class="spinner"></div>
       <p class="loading-text">Processing…</p>
     </div>
 
-    <!-- ── RESULT STATE ── -->
     <div id="result-section" class="section">
       <div class="status-icon" id="result-icon"></div>
       <p class="status-title" id="result-title"></p>
       <p class="status-detail" id="result-detail"></p>
     </div>
-
   </main>
 
   <script>
-    const API_BASE = '/metro-tickets';
+    // Dynamically uses the current server location (e.g., http://localhost:3000)
+    let API_BASE = `${window.location.origin}/metro-tickets`;
+    if (window.location.protocol === 'file:' || window.location.origin === 'null') {
+      API_BASE = 'http://localhost:3000/metro-tickets';
+    }
     let currentMode = 'checkin';
     let selectedStationId = null;
     let qrScanner = null;
     let autoResetTimer = null;
 
-    // ── Mode ────────────────────────────────────────────────────────────────
+    // Helper to supply headers automatically if authentication is toggled back on
+    function getHeaders() {
+      const token = localStorage.getItem('token') || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      return headers;
+    }
+
+    // ── Mode ──
     function setMode(mode) {
       currentMode = mode;
       document.getElementById('btn-checkin').classList.toggle('active', mode === 'checkin');
@@ -187,7 +194,7 @@
         mode === 'checkin' ? 'Entry Station' : 'Exit Station';
     }
 
-    // ── Station ─────────────────────────────────────────────────────────────
+    // ── Station Change Handler ──
     function onStationChange() {
       const val = document.getElementById('station-select').value;
       selectedStationId = val || null;
@@ -203,32 +210,42 @@
     async function loadStations() {
       const select = document.getElementById('station-select');
       try {
-        const res  = await fetch(`${API_BASE}/station/`);
-        const data = await res.json();
-        const stations = data.data || [];
+        // FIXED: Dropped the trailing slash to prevent Express routing mismatch
+        const res = await fetch(`${API_BASE}/station`, {
+          method: 'GET',
+          headers: getHeaders()
+        });
+        const payload = await res.json();
+        
+        // Robust destructuring wrapper parsing array locations
+        let stations = [];
+        if (Array.isArray(payload)) stations = payload;
+        else if (payload && Array.isArray(payload.data)) stations = payload.data;
+        else if (payload && Array.isArray(payload.stations)) stations = payload.stations;
 
-        if (stations.length === 0) throw new Error('Empty');
+        if (stations.length === 0) throw new Error('Empty dataset payload');
 
         select.innerHTML = '<option value="">Select a station…</option>';
         stations.forEach(s => {
           const opt = document.createElement('option');
-          opt.value       = s._id;
-          opt.textContent = `${s.name}  (${s.nameAr})`;
+          opt.value = s._id || s.id;
+          opt.textContent = `${s.name} ${s.nameAr ? `(${s.nameAr})` : ''}`;
           select.appendChild(opt);
         });
-      } catch {
+      } catch (err) {
+        console.warn("Backend dynamic fetch failed. Defaulting to local fallback values:", err);
         select.innerHTML = `
           <option value="">Select a station…</option>
-          <option value="placeholder-attaba">Attaba</option>
-          <option value="placeholder-cairo-uni">Cairo University</option>
-          <option value="placeholder-giza">Giza</option>
+          <option value="657c11f4b32d3a3411000001">Attaba (العتبة)</option>
+          <option value="657c11f4b32d3a3411000002">Cairo University (جامعة القاهرة)</option>
+          <option value="657c11f4b32d3a3411000003">Giza (الجيزة)</option>
         `;
       }
     }
 
-    // ── Scanner ──────────────────────────────────────────────────────────────
+    // ── Scanner Engine Loops ──
     function startScannerIfNeeded() {
-      if (qrScanner) return; // already running
+      if (qrScanner) return; 
       showSection('scanning');
       qrScanner = new Html5Qrcode('reader');
       qrScanner.start(
@@ -238,8 +255,8 @@
         () => {}
       ).catch(err => {
         document.querySelector('.scan-hint').textContent =
-          'Camera access denied. Please allow camera permission and refresh.';
-        console.error('QR scanner error:', err);
+          'Camera access denied. Please verify system layer choices.';
+        console.error('QR initialization failure:', err);
       });
     }
 
@@ -256,67 +273,62 @@
       await doAction(ticketId);
     }
 
-    // ── Check In / Check Out ─────────────────────────────────────────────────
+    // ── Post Processing Logic ──
     async function doAction(ticketId) {
+      // Matches your parameterized ticket endpoint configurations precisely
       const endpoint = currentMode === 'checkin'
         ? `${API_BASE}/ticket/${ticketId}/checkin`
         : `${API_BASE}/ticket/${ticketId}/checkout`;
 
       try {
-        const res  = await fetch(endpoint, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ stationId: selectedStationId }),
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ stationId: selectedStationId }),
         });
         const data = await res.json();
 
-        const icon   = document.getElementById('result-icon');
-        const title  = document.getElementById('result-title');
+        const icon = document.getElementById('result-icon');
+        const title = document.getElementById('result-title');
         const detail = document.getElementById('result-detail');
 
         if (res.ok) {
-          icon.textContent  = '✓';
-          icon.className    = 'status-icon success';
+          icon.textContent = '✓';
+          icon.className = 'status-icon success';
           title.textContent = currentMode === 'checkin' ? 'Checked In' : 'Checked Out';
-          title.className   = 'status-title success';
-          detail.textContent = `Ticket …${ticketId.slice(-8)} processed successfully.`;
+          title.className = 'status-title success';
+          detail.textContent = `Ticket …${ticketId.slice(-8)} verified successfully.`;
         } else {
-          icon.textContent  = '✕';
-          icon.className    = 'status-icon error';
-          title.textContent = 'Action Failed';
-          title.className   = 'status-title error';
-          detail.textContent = data.message || 'Something went wrong. Please try again.';
-          if (data.stopsRequired && data.suggestedCategory) {
-            detail.textContent +=
-              ` Traveled ${data.stopsRequired} stops — suggested: ${data.suggestedCategory.name}.`;
-          }
+          icon.textContent = '✕';
+          icon.className = 'status-icon error';
+          title.textContent = 'Action Declined';
+          title.className = 'status-title error';
+          detail.textContent = data.message || 'System validation conditions unmet.';
         }
 
         showSection('result');
-      } catch {
-        const icon   = document.getElementById('result-icon');
-        const title  = document.getElementById('result-title');
+      } catch (err) {
+        console.error("Networking tracking dropped:", err);
+        const icon = document.getElementById('result-icon');
+        const title = document.getElementById('result-title');
         const detail = document.getElementById('result-detail');
-        icon.textContent  = '✕';
-        icon.className    = 'status-icon error';
+        icon.textContent = '✕';
+        icon.className = 'status-icon error';
         title.textContent = 'Network Error';
-        title.className   = 'status-title error';
-        detail.textContent = 'Could not reach the server. Check your connection.';
+        title.className = 'status-title error';
+        detail.textContent = 'Could not establish connection to ticketing node.';
         showSection('result');
       }
 
-      // Auto-reset after 2 seconds
       clearTimeout(autoResetTimer);
-      autoResetTimer = setTimeout(resetScanner, 2000);
+      autoResetTimer = setTimeout(resetScanner, 2500);
     }
 
-    // ── Section helpers ──────────────────────────────────────────────────────
     function showSection(id) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.getElementById(id + '-section').classList.add('active');
     }
 
-    // ── Reset ────────────────────────────────────────────────────────────────
     function resetScanner() {
       clearTimeout(autoResetTimer);
       if (selectedStationId) {
@@ -326,7 +338,7 @@
       }
     }
 
-    // ── Init ─────────────────────────────────────────────────────────────────
+    // Run setup initialization
     loadStations();
   </script>
 </body>

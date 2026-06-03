@@ -1,6 +1,6 @@
 import { Router } from "express";
-// import { isAuthenticated } from "../../middleware/authentication.middleware.js";
-// import { isAdmin }          from "../../middleware/admin.middleware.js";
+import { isAuthenticated } from "../../middleware/authentication.middleware.js";
+import { isAdmin }          from "../../middleware/admin.middleware.js";
 
 // import { protect } from '../auth/auth.controller.js';
 import {
@@ -19,12 +19,12 @@ const router = Router();
 router
   .route('/')
   .get( getAllStations)    
-  .post(createStation);
+  .post(isAuthenticated, isAdmin, createStation);
 
 router
   .route('/:id')
   .get(getStation)       
-  .patch(updateStation)
-  .delete(deleteStation);
+  .patch(isAuthenticated, isAdmin, updateStation)
+  .delete(isAuthenticated, isAdmin, deleteStation);
 
 export default router;

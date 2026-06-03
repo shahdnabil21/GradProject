@@ -24,6 +24,89 @@ const processMockCard = (cardNumber) => {
     : { success: false, reason: "Insufficient funds" };
 };
 
+const validateCard = ({ cardNumber, expiry, cvv }) => {
+  // Add your card validation logic here
+  if (!cardNumber || cardNumber.length < 13) {
+    throw new Error("Invalid card number");
+  }
+  if (!expiry || !expiry.match(/^\d{2}\/\d{2}$/)) {
+    throw new Error("Invalid expiry format (MM/YY)");
+  }
+  if (!cvv || cvv.length < 3) {
+    throw new Error("Invalid CVV");
+  }
+};
+
+
+// PROCESS WALLET PAYMENT
+const processWalletPayment = async (userId, totalAmount, serviceFee, transaction) => {
+  const wallet = await Wallet.findOne({ userId });
+
+  if (!wallet) {
+    transaction.status = "failed";
+    transaction.failureReason = "Wallet not found";
+    await transaction.save();
+    throw new Error("Wallet not found");
+  }
+
+  if (wallet.balance < totalAmount) {
+    transaction.status = "failed";
+    transaction.failureReason = "Insufficient wallet balance";
+    await transaction.save();
+    throw new Error("Insufficient wallet balance");
+  }
+
+  // Deduct money from wallet
+  wallet.balance -= totalAmount;
+  await wallet.save();
+
+  // Explicitly assign the wallet's ID to the transaction
+  transaction.wallet = wallet._id;
+  await transaction.save();
+
+  console.log("Saved wallet ID to transaction:", transaction.wallet);
+
+  return {
+    paymentMethod: "wallet",
+    gatewayFee: 0,
+    appServiceFee: serviceFee,
+  };
+};
+// PROCESS CARD PAYMENT
+const processCardPayment = async (cardNumber, expiry, cvv, totalAmount, serviceFee, transaction) => {
+  // Validate card format
+  validateCard({ cardNumber, expiry, cvv });
+
+  // Calculate Fawry gateway fees
+  const fawryGatewayFee = 2.00;
+
+  // Process the payment through mock gateway
+  const result = processMockCard(cardNumber);
+
+  if (!result.success) {
+    transaction.status = "failed";
+    transaction.failureReason = result.reason;
+    await transaction.save();
+    throw new Error(result.reason);
+  }
+
+  // Update transaction with gateway fees
+const updatedTotalAmount = Number(
+  (totalAmount + fawryGatewayFee).toFixed(2)
+);
+
+transaction.amount = updatedTotalAmount;
+
+await transaction.save();
+
+return {
+  paymentMethod: "card",
+  gatewayFee: fawryGatewayFee,
+  appServiceFee: serviceFee,
+  updatedAmount: updatedTotalAmount,
+};
+};
+
 export const processPaymentService = async ({
   userId,
   ticketIds,
@@ -32,6 +115,11 @@ export const processPaymentService = async ({
   expiry,
   cvv,
 }) => {
+  // Validate payment method
+  if (!["wallet", "card"].includes(paymentMethod)) {
+    throw new Error("Invalid payment method. Must be 'wallet' or 'card'");
+  }
+
   // 1. GET TICKETS
   const tickets = await Ticket.find({ _id: { $in: ticketIds } });
 
@@ -51,12 +139,13 @@ export const processPaymentService = async ({
   for (const ticket of tickets) {
     const category = await Category.findById(ticket.category);
     if (!category) throw new Error("Category not found");
-
     totalAmount += category.price;
   }
 
+  // Add app service fee (0.5 EGP per ticket)
   let serviceFee = tickets.length * 0.5;
   totalAmount += serviceFee;
+
 
   // 4. CREATE TRANSACTION (PENDING)
   const transaction = await Transaction.create({
@@ -68,75 +157,27 @@ export const processPaymentService = async ({
     transactionId: "TXN-" + Date.now(),
   });
 
-  // 5. PAYMENT PROCESSING
- // 5. PAYMENT PROCESSING
+  // 5. PROCESS PAYMENT BASED ON METHOD
+  let paymentResult;
 
-if (paymentMethod === "wallet") {
-
-  const wallet = await Wallet.findOne({ userId });
-
-  if (!wallet) {
-    transaction.status = "failed";
-    await transaction.save();
-    throw new Error("Wallet not found");
+  try {
+    if (paymentMethod === "wallet") {
+      paymentResult = await processWalletPayment(userId, totalAmount, serviceFee, transaction);
+    } else if (paymentMethod === "card") {
+      paymentResult = await processCardPayment(
+        cardNumber,
+        expiry,
+        cvv,
+        totalAmount,
+        serviceFee,
+        transaction
+      );
+    }
+  } catch (error) {
+    throw error; // Re-throw to be caught in controller
   }
 
-  if (wallet.balance < totalAmount) {
-    transaction.status = "failed";
-    transaction.failureReason = "Insufficient balance";
-    await transaction.save();
-
-    throw new Error("Insufficient wallet balance");
-  }
-
-  // deduct money
-  wallet.balance -= totalAmount;
-
-  await wallet.save();
-}
-
-else if (paymentMethod === "card") {
-
-  // 1. Calculate Fawry fees separately
-  const fawryPercentRate = 0.025; 
-  const fawryFixedFee = 2.00;
-  const fawryGatewayFee = Number(((totalAmount * fawryPercentRate) + fawryFixedFee).toFixed(2));
-
-  // 2. Track old baseline app fee before adding Fawry fee
-  const appServiceFee = serviceFee; 
-
-  // 3. Update global tallies for the database record
-  totalAmount += fawryGatewayFee;
-  serviceFee += fawryGatewayFee;
-
-  // 4. Update and save the transaction document
-  transaction.amount = Number(totalAmount.toFixed(2));
-  transaction.serviceFee = Number(serviceFee.toFixed(2));
-  await transaction.save();
-
-  // validate card format
-  validateCard({ cardNumber, expiry, cvv });
-
-  // mock payment gateway
-  const result = processMockCard(cardNumber);
-
-  if (!result.success) {
-    transaction.status = "failed";
-    transaction.failureReason = result.reason;
-    await transaction.save();
-    throw new Error(result.reason);
-  }
-
-  // 5. Attach temporary properties to the transaction object so we can use them in the final return
-  transaction._fawryFee = fawryGatewayFee;
-  transaction._appFee = appServiceFee;
-}
-
-else {
-  throw new Error("Invalid payment method");
-}
-
-  // 6. MARK SUCCESS
+  // 6. MARK TRANSACTION AS COMPLETED
   transaction.status = "completed";
   transaction.paidAt = new Date();
   await transaction.save();
@@ -148,16 +189,7 @@ else {
   );
 
   // 8. GENERATE QR CODES FOR EACH TICKET
-  // const updatedTickets = await Ticket.find({ _id: { $in: ticketIds } }).populate("category");
-  // const qrCodes = await Promise.all(
-  //   updatedTickets.map(async (t) => ({
-  //     ticketId: t._id,
-  //     qrCode: await QRCode.toDataURL(t._id.toString()),
-  //   }))
-  // );
-
-  // return { transaction, qrCodes };
-const updatedTickets = await Ticket.find({ _id: { $in: ticketIds } }).populate("category");
+  const updatedTickets = await Ticket.find({ _id: { $in: ticketIds } }).populate("category");
   const qrCodes = await Promise.all(
     updatedTickets.map(async (t) => ({
       ticketId: t._id,
@@ -165,18 +197,34 @@ const updatedTickets = await Ticket.find({ _id: { $in: ticketIds } }).populate("
     }))
   );
 
-  // ── RETURN THE EXPLICIT BREAKDOWN TO THE CONTROLLER/FRONTEND ──────────────
-  return { 
-    transaction, 
+  // Calculate total ticket base price
+  const ticketBasePrice = updatedTickets.reduce(
+    (acc, t) => acc + (t.category?.price || 0),
+    0
+  );
+// 9. RETURN COMPLETE BREAKDOWN
+  // Populate the wallet relation if it exists
+  if (transaction.wallet) {
+    await transaction.populate("wallet");
+  }
+
+  return {
+    transaction: {
+      id: transaction._id,
+      // Safely extract the ID whether it is populated as an object or left as an ObjectId
+      walletId: transaction.wallet?._id || transaction.wallet || null, 
+      amount: transaction.amount,
+      status: transaction.status,
+      paidAt: transaction.paidAt,
+    },
     qrCodes,
     feeBreakdown: {
-      ticketBasePrice: updatedTickets.reduce((acc, t) => acc + (t.category?.price || 0), 0),
-      appServiceFee: transaction._appFee || serviceFee, // baseline ticket fees (0.5 EGP per ticket)
-      fawryGatewayFee: transaction._fawryFee || 0,       // 0 if paid by wallet, calculated amount if card
-      finalTotalPayed: transaction.amount
+      ticketBasePrice,
+      appServiceFee: paymentResult.appServiceFee,
+      gatewayFee: paymentResult.gatewayFee,
+      finalTotalPayed: transaction.amount,
+      paymentMethod: paymentResult.paymentMethod,
     },
-    categories: updatedTickets.map(t => t.category) // Array of metro ticket categories purchased (e.g. 9 stations, 16 stations)
+    categories: updatedTickets.map((t) => t.category),
   };
 };
-
-

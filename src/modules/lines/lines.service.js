@@ -6,7 +6,7 @@ import AppError from '../../utils/appError.js';
  */
 export const getAllLinesService = async () => {
   const lines = await Line.find();
-  console.log(lines);
+  // console.log(lines);
   return lines;
 
   

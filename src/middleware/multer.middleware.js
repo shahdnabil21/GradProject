@@ -1,16 +1,20 @@
 import multer from "multer";
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import AppError from "../utils/appError.js";
 
-const uploadPath = "uploads/subscriptions";
-
-// Create folder if it doesn't exist(to Avoid any crash)
-if (!fs.existsSync(uploadPath)) {
-    fs.mkdirSync(uploadPath, { recursive: true });
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, "../../");
+const uploadPath = path.join(projectRoot, "uploads/subscriptions");
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
+        // Dynamically create folder if it doesn't exist to prevent ENOENT crashes
+        if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+        }
         cb(null, uploadPath);
     },
     filename: (req, file, cb) => {
@@ -39,40 +43,3 @@ export const uploadSubscriptionDocs = multer({
     }, 
 }); 
 
-/* import multer from "multer"
-import { randomUUID } from "node:crypto"
-import { existsSync, mkdirSync } from "node:fs"
-import {resolve} from"node:path"
-
-export const fileValidation = {
-    image:["image/jpeg", "image/png", "image/jpg"]
-}
-export const upload = (customPath = "general", validation= [],size=5)=>{
-    const storage = multer.diskStorage({
-        destination:function (req, file, cb){
-            
-            let filePath= resolve(`upload/${customPath}`)
-            if(!existsSync(filePath)){
-                mkdirSync(filePath,{recursive:true})
-            }
-            cb(null,filePath)
-        },
-        filename: function(req, file, cb){
-            const uniqueFileName = randomUUID() + '_' + file.originalname
-            file.finalPath = `upload/${customPath}/${uniqueFileName}`
-            cb(null, uniqueFileName)
-        },
-
-    })
-
-    const fileFilter = function (req, file, cb){
-        if(!validation.includes(file.mimetype)){
-            const err = new Error(`Invalid File Format this only accept${validation}`);
-            err.status = 400;
-            return cb(err,false)
-        }
-        cb(null,true)
-    }
-    
-    return multer({fileFilter,storage, limits:{fileSize: size * 1024* 1024}})
-} */

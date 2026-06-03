@@ -8,7 +8,7 @@ export const isValid = (schema) => {
                 ...req.query,
                 ...req.params,
             };
-            console.log("ISVALID DATA:", dataToValidate);
+            
             const { error, value } = schema.validate(dataToValidate, {
                 abortEarly: false,
                 convert:true,

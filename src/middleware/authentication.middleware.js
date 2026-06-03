@@ -5,16 +5,18 @@ import { MESSAGES } from "../constant/message.constant.js";
 
 export const isAuthenticated = async (req, res, next) => {
     try {
-        const { authorization } = req.headers;
+        let token = req.headers.authorization || req.headers.token;
 
-        if (!authorization) {
+        if (!token) {
             return next(new AppError("You are not logged in. Please log in first.", 401));
         }
-        //Verify token
-        // const payload = jwt.verify(authorization, process.env.JWT_SECRET);
-        const token = authorization.split(" ")[1];
 
-const payload = jwt.verify(token, process.env.JWT_SECRET);
+        // Handle both "Bearer <token>" format and raw token formats
+        if (token.startsWith("Bearer ")) {
+            token = token.split(" ")[1];
+        }
+
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
 
         //Find User
         const user = await User.findById(payload.id);
@@ -35,7 +37,7 @@ const payload = jwt.verify(token, process.env.JWT_SECRET);
         req.user = user
         next();
     } catch (error) {
-        console.log("❌ isAuthenticated threw:", error.message);
+        // console.log("❌ isAuthenticated threw:", error.message);
         next(error);
     }
 };

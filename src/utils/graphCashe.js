@@ -26,5 +26,5 @@ export async function getGraph() {
 export function invalidateGraphCache() {
   cachedGraph = null;
   cacheBuiltAt = null;
-  console.log('[GraphCache] Cache invalidated.');
+  // console.log('[GraphCache] Cache invalidated.');
 }

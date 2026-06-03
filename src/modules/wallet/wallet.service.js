@@ -42,41 +42,22 @@ export const chargeWalletService = async (userId, amount) => {
             403
         );
     }
-      const percentFee = 0.025; // 2.5%
-    const fixedFee = 2.0;     // flat fee
-
-    const serviceFee = Number(
-        (amount * percentFee + fixedFee).toFixed(2)
-    );
-
-    const netAmount = Number((amount - serviceFee).toFixed(2));
-
-    if (netAmount <= 0) {
-        throw new AppError("Amount too small after fees", 400);
-    }
-
-    /* ─────────────────────────────
-       CREDIT WALLET
-    ───────────────────────────── */
-    wallet.balance += netAmount;
-    wallet.chargedAt = new Date();
-
+    const paymentgatewayFee = 2; 
+    const netAmount = amount - paymentgatewayFee;
+    // Add amount to existing balance
+    wallet.balance   += amount;
+    wallet.chargedAt  = new Date();
     await wallet.save();
-
-    return {
-        wallet,
-        grossAmount: amount,
-        serviceFee,
-        netAmount,
-    };
+    return wallet;
 };
 
 // ── Deduct from wallet (used when buying a ticket) ───────────────────────────
 export const deductFromWalletService = async (userId, amount) => {
 
-    const wallet = await Wallet.findOne({ userId });
+    let wallet = await Wallet.findOne({ userId });
     if (!wallet) {
-        throw new AppError(MESSAGES.wallet.notFound, 404);
+        // Automatically create a wallet with a default balance of 100 EGP for easier testing and development
+        wallet = await Wallet.create({ userId, balance: 100 });
     }
     if (!wallet.isActive) {
         throw new AppError(

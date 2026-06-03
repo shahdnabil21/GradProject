@@ -265,6 +265,21 @@ export const getRevenueService = async (period) => {
     // Fallback — group by day using createdAt
     const revenueData = await Ticket.aggregate([
         { $match: { createdAt: { $gte: start, $lte: end } } },
+          {
+            // join ticket with its category to get price
+            $lookup: {
+                from:         "categories", // MongoDB collection name
+                localField:   "category",
+                foreignField: "_id",
+                as:           "categoryData",
+            }
+        },
+         {
+            $unwind: {
+                path: "$categoryData",
+                preserveNullAndEmptyArrays: true,
+            }
+        },
         {
             $group: {
                 _id: {
@@ -273,6 +288,7 @@ export const getRevenueService = async (period) => {
                     year:  { $year: "$createdAt" },
                 },
                 dailyTickets: { $sum: 1 },
+                dailyRevenue: { $sum: "$categoryData.price" },
             },
         },
         { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
@@ -309,34 +325,51 @@ export const getLineUsageService = async (period) => {
             .map(([lineName, ticketCount]) => ({ lineName, ticketCount }))
             .sort((a, b) => b.ticketCount - a.ticketCount);
     }
-    // Fallback — get line from station with lookup
-    const lineData= await Ticket.aggregate([
+
+    // Fallback — group by category (ticket type)
+    const lineData = await Ticket.aggregate([
         { $match: { createdAt: { $gte: start, $lte: end } } },
         {
             $lookup: {
-                from: "stations",
-                localField: "checkInStation",
+                from:         "categories",
+                localField:   "category",
                 foreignField: "_id",
-                as: "station",
+                as:           "categoryData",
             }
         },
-        { $unwind: { path: "$station", preserveNullAndEmptyArrays: true } },
+        {
+            $unwind: {
+                path: "$categoryData",
+                preserveNullAndEmptyArrays: true,
+            }
+        },
         {
             $group: {
-                _id: { $ifNull: ["$station.line", "Unknown Line"] },
-                ticketCount: { $sum: 1 },
+                _id: {
+                    $ifNull: ["$categoryData.name", "Unknown Category"]
+                },
+                ticketCount:      { $sum: 1 },
+                totalRevenue:     { $sum: "$categoryData.price" },
             }
         },
         { $sort: { ticketCount: -1 } },
-        { $project: { lineName: "$_id", ticketCount: 1, _id: 0 } },
+        {
+            $project: {
+                categoryName: "$_id",
+                ticketCount:  1,
+                totalRevenue: 1,
+                _id:          0,
+            }
+        },
     ]);
-      // ✅ check first if there's no CreatedAt before returning
+
     if (lineData.length === 0) {
         return {
-            message: "No line usage data found for this period. Will populate once tickets have createdAt saved.",
+            message: "No usage data found for this period.",
             period,
             data: [],
         };
     }
+
     return lineData;
 };

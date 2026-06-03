@@ -4,7 +4,7 @@
   "main": "./src/main.js",
   "type": "module",
   "scripts": {
-    "start:dev": "cross-env NODE_ENV=development  node --watch-path=. ./src/main.js",
+    "start:dev": "cross-env NODE_ENV=development  node --watch ./src/main.js",
     "start:prod": "cross-env NODE_ENV=production  node  ./src/main.js",
     "seed:import": "node src/DB/seed/import-seed.js --import",
     "seed:delete": "node src/DB/seed/import-seed.js --delete"
