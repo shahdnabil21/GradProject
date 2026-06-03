@@ -1,9 +1,19 @@
+import mongoose from 'mongoose';
 import bootstrap from '../src/app.bootstrap.js';
 import { connectDB } from '../src/DB/connection.db.js';
 
-// Pre-connect database globally for the Vercel function lifecycle
-await connectDB();
+let app;
 
-const app = bootstrap();
+export default async (req, res) => {
+  // Ensure MongoDB is connected before processing request
+  if (mongoose.connection.readyState === 0) {
+    await connectDB();
+  }
 
-export default app;
+  if (!app) {
+    app = bootstrap();
+  }
+
+  // Handle routing via Express
+  return app(req, res);
+};

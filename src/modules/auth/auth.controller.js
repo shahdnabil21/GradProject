@@ -7,18 +7,11 @@ import catchAsync from '../../utils/catchAsync.js';
 
 // ── SIGN UP ────────────────────────────────────────
 export const signUp = catchAsync(async (req, res, next) => {
-  const result = await signUpService(
-    req.body.name,
-    req.body.email,
-    req.body.password,
-    req.body.confirmPassword,
-    req.body.gender
-);
+  const result = await signUpService(req.body);
   res.status(201).json({
     status: 'success',
     message: result.message,
-    data: result,
-    //data: { user: result.user },
+    data: { user: result.user },
   });
 });
 
@@ -86,6 +79,5 @@ export const protect = catchAsync(async (req, res , next)=>{
   req.user = user;
   next();
 });
-
 
 export default router

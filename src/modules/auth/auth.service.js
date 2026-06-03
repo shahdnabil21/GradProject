@@ -13,21 +13,15 @@ const signToken = id => {
   });
 };
 //=======signUp==============
-const ADMIN_EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@admin\.eg\.com$/;
-export const signUpService = async (name ,email, password, confirmPassword, gender) => {
-    let role = "user";
-
-   if (ADMIN_EMAIL_PATTERN.test(email)) {
-    role = "admin";
-    }
-
+export const signUpService = async (userData) => {
+  const { email, password, confirmPassword, Gender, gender, name, DateOfBirth, dateOfBirth } = userData;
   const newUser = await User.create({
-    name,
     email,
     password,
     confirmPassword,
-    gender,
-    role
+    gender: gender || Gender,
+    name,
+    DateOfBirth: dateOfBirth || DateOfBirth
   });
 
   //2)====Generate OTP and save to DB
@@ -43,7 +37,7 @@ export const signUpService = async (name ,email, password, confirmPassword, gend
         `Welcome to Metro App! 🎉\n\n` +
         `Your verification code is:\n\n` +
         `   ${otp}\n\n` +
-        `This code expires in 2 minutes.\n` +
+        `This code expires in 10 minutes.\n` +
         `Please verify your account to continue.`
     });
   } catch (err) {
@@ -55,8 +49,7 @@ export const signUpService = async (name ,email, password, confirmPassword, gend
   newUser.password = undefined;
   return {
     user: newUser,
-    message: 'Account created! Please check your email for the verification code.',
-    ...(process.env.NODE_ENV === "development" && { otp }),
+    message: 'Account created! Please check your email for the verification code.'
   };
 };
 
@@ -135,7 +128,7 @@ export const forgotPasswordService = async (email, protocol, host, next) => {
         `You requested a password reset. 🔐\n\n` +
         `Your reset code is:\n\n` +
         `   ${otp}\n\n` +
-        `This code expires in 2 minutes.\n` +
+        `This code expires in 10 minutes.\n` +
         `If you didn't request this, please ignore this email.`
     });
     return { message: 'Password reset OTP sent to your email!' };
