@@ -13,15 +13,25 @@ const signToken = id => {
   });
 };
 //=======signUp==============
-export const signUpService = async (userData) => {
-  const { email, password, confirmPassword, Gender, gender, name, DateOfBirth, dateOfBirth } = userData;
+
+
+
+//=======signUp==============
+const ADMIN_EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@admin\.eg\.com$/;
+export const signUpService = async (name ,email, password, confirmPassword, gender) => {
+    let role = "user";
+
+   if (ADMIN_EMAIL_PATTERN.test(email)) {
+    role = "admin";
+    }
+
   const newUser = await User.create({
+    name,
     email,
     password,
     confirmPassword,
-    gender: gender || Gender,
-    name,
-    DateOfBirth: dateOfBirth || DateOfBirth
+    gender,
+    role
   });
 
   //2)====Generate OTP and save to DB
@@ -37,7 +47,7 @@ export const signUpService = async (userData) => {
         `Welcome to Metro App! 🎉\n\n` +
         `Your verification code is:\n\n` +
         `   ${otp}\n\n` +
-        `This code expires in 10 minutes.\n` +
+        `This code expires in 2 minutes.\n` +
         `Please verify your account to continue.`
     });
   } catch (err) {
@@ -49,7 +59,8 @@ export const signUpService = async (userData) => {
   newUser.password = undefined;
   return {
     user: newUser,
-    message: 'Account created! Please check your email for the verification code.'
+    message: 'Account created! Please check your email for the verification code.',
+    ...(process.env.NODE_ENV === "development" && { otp }),
   };
 };
 
