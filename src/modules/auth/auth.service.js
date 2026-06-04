@@ -5,7 +5,6 @@ import crypto from 'crypto'
 import AppError from '../../utils/appError.js';
 import sendEmail from '../../utils/sendEmail.js';
 
-
 // TOKEN
 const signToken = id => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -13,25 +12,17 @@ const signToken = id => {
   });
 };
 //=======signUp==============
-
-
-
-//=======signUp==============
-const ADMIN_EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@admin\.eg\.com$/;
-export const signUpService = async (name ,email, password, confirmPassword, gender) => {
-    let role = "user";
-
-   if (ADMIN_EMAIL_PATTERN.test(email)) {
-    role = "admin";
-    }
+/* export const signUpService = async (email, password, confirmPassword, gender, dateOfBirth, name) => {
+  if (password !== confirmPassword)
+  throw new AppError('Passwords do not match!', 400);
 
   const newUser = await User.create({
-    name,
     email,
     password,
     confirmPassword,
     gender,
-    role
+    dateOfBirth,
+    name
   });
 
   //2)====Generate OTP and save to DB
@@ -49,6 +40,60 @@ export const signUpService = async (name ,email, password, confirmPassword, gend
         `   ${otp}\n\n` +
         `This code expires in 2 minutes.\n` +
         `Please verify your account to continue.`
+    });
+  } catch (err) {
+    // if email fails → delete user so they can signup again
+    await User.findByIdAndDelete(newUser._id);
+    throw new AppError('Error sending verification email. Please try again.', 500);
+  }
+
+
+  newUser.password = undefined;
+  return {
+    user: newUser,
+    message: 'Account created! Please check your email for the verification code.'
+  };
+}; */
+
+//sign up 2=============================
+const ADMIN_EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@admin\.eg\.com$/;
+export const signUpService = async ( {email,
+  password,
+  confirmPassword,
+  gender,
+  dateOfBirth,
+  name}) => {
+    let role = "user";
+
+   if (ADMIN_EMAIL_PATTERN.test(email)) {
+    role = "admin";
+    }
+
+  const newUser = await User.create({
+   name,
+  email,
+  password,
+  confirmPassword,
+  gender,
+  dateOfBirth,
+  role
+  });
+
+  //2)====Generate OTP and save to DB
+  const otp = newUser.createOTP();
+  await newUser.save({ validateBeforeSave: false });
+
+// 3) Send OTP email
+  try {
+    await sendEmail({
+      email: newUser.email,
+      subject: 'Metro App — Verify Your Account',
+      message:
+      `  Welcome to Metro App! 🎉\n\n +
+        Your verification code is:\n\n +
+           ${otp}\n\n +
+        This code expires in 2 minutes.\n +
+        Please verify your account to continue.`
     });
   } catch (err) {
     // if email fails → delete user so they can signup again
@@ -93,6 +138,47 @@ export const verifyOtpService = async (email, otp) => {
 };
 
 
+
+//resend OTP
+
+export const resendOtpService = async (email) => {
+  const user = await User.findOne({ email });
+
+  // console.log('User found:', user); // ← add this
+
+  if (!user)
+    throw new AppError('No user found with that email.', 404);
+
+  if (user.isVerified)
+    throw new AppError('This account is already verified.', 400);
+
+  const otp = user.createOTP();
+  await user.save({ validateBeforeSave: false });
+
+  console.log('OTP generated:', otp); // ← add this
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: 'Metro App — New Verification Code',
+      message:
+        `Here is your new verification code:\n\n` +
+        `   ${otp}\n\n` +
+        `This code expires in 2 minutes.`
+    });
+    console.log('Email sent successfully'); // ← add this
+    return { message: 'A new OTP has been sent to your email.' };
+  } catch (err) {
+    console.log('Email error:', err); // ← add this
+    user.otpCode = undefined;
+    user.otpExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+    throw new AppError('Error sending email. Try again later.', 500);
+  }
+
+
+};
+
 //==========Login============
 export const logInService = async (email, password) => {
    // 1) Check if email and password exist
@@ -120,11 +206,13 @@ export const logInService = async (email, password) => {
 
 
 // ── FORGOT PASSWORD ⭐ ────────────────────────────────
-export const forgotPasswordService = async (email, protocol, host, next) => {
+export const forgotPasswordService = async (email, protocol, host) => {
   // 1) Find user by email
   const user = await User.findOne({ email });
+  // if (!user)
+  //   return next(new AppError('No user found with that email address.', 404));
   if (!user)
-    return next(new AppError('No user found with that email address.', 404));
+  throw new AppError('No user found with that email address.', 404);
 
   // 2) Generate OTP for password reset
   const otp = user.createOTP();
@@ -150,6 +238,7 @@ export const forgotPasswordService = async (email, protocol, host, next) => {
     await user.save({ validateBeforeSave: false });
     throw new AppError('Error sending email. Try again later.', 500);
   } 
+
 };
 
 

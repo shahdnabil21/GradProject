@@ -3,9 +3,10 @@ import { Schema , model } from "mongoose";
 import validator from "validator";
 import { hash,compare } from "bcrypt";
 import crypto from 'crypto';
+import { time } from "console";
 
 const userSchema = new Schema({
- name:{
+  name:{
     type: String,
     required: [true, 'Please provide your name']
   },
@@ -21,12 +22,12 @@ const userSchema = new Schema({
     enum: ['user', 'admin'],
     default: 'user'
   },
-  gender:{
+    gender:{
     type: String,
     enum: ['male', 'female' ],
     required: true
   },
-  dateOfBirth: {
+ dateOfBirth: {
   type: Date,
   validate: {
     validator: function(val) {
@@ -39,7 +40,13 @@ const userSchema = new Schema({
     type: String,
     required: [true, 'Please provide a password'],
     minlength: 8,
-    select: false
+    select: false,
+     validate: {
+    validator: function(val) {
+      return /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(val);
+    },
+    message: 'Password must have at least 1 uppercase letter, 1 number, and 1 special character'
+  }
   },
   confirmPassword: {
     type: String,
@@ -57,23 +64,20 @@ const userSchema = new Schema({
    active: {
     type: Boolean,
     default: true,
+    select: false 
   }, 
   otpCode: String,
   otpExpires: Date,
   isVerified: {
     type:Boolean ,
     default:false
-  },
-},  {timestamps:true}
- );
+  }
+},{
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+},{timestamps: true});
 
-userSchema.pre('save', async function() {
-  if (!this.isModified('password')) return;
-
-  this.password = await hash(this.password, 12);
-  this.confirmPassword = undefined;
-});
-// User Age 
+// user age 
 userSchema.virtual('age').get(function() {
   if (!this.dateOfBirth) return null;
   const today = new Date();
@@ -86,8 +90,16 @@ userSchema.virtual('age').get(function() {
   return age;
 });
 
+// password encryption
+userSchema.pre('save', async function() {
+  if (!this.isModified('password')) return;
+
+  this.password = await hash(this.password, 12);
+  this.confirmPassword = undefined;
+});
+
 userSchema.methods.correctPassword = async function(
-  candidatePassword, 
+  candidatePassword,
   userPassword
 ) {
   return await compare(candidatePassword, userPassword);
@@ -110,14 +122,6 @@ userSchema.methods.createOTP = function() {
   // 4) Return plain OTP for the email
   return otp;
 };
-userSchema.index(
-  { otpExpires: 1 },
-  {
-    expireAfterSeconds: 0,
-    partialFilterExpression: { isVerified: false }
-  }
-);
-
 
 const User = model('User', userSchema);
 export default User;

@@ -7,14 +7,16 @@ import catchAsync from '../../utils/catchAsync.js';
 
 // ── SIGN UP ────────────────────────────────────────
 export const signUp = catchAsync(async (req, res, next) => {
-  const result = await signUpService(req.body);
+  const result = await signUpService(
+   req.body,
+  );
+
   res.status(201).json({
     status: 'success',
     message: result.message,
-    data: { user: result.user },
+    data: result,
   });
 });
-
 // ── VERIFY OTP — cverifies account after signup ──────────────────────
 export const verifyOtp = catchAsync(async (req, res, next) => {
   const { email, otp } = req.body;
@@ -79,5 +81,6 @@ export const protect = catchAsync(async (req, res , next)=>{
   req.user = user;
   next();
 });
+
 
 export default router

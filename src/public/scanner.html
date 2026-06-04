@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Metro Ticket Scanner</title>
+  <link rel="icon" type="image/png" href="logo.png">
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -119,11 +120,14 @@
       background: #1e293b; border-radius: 10px; padding: 14px 16px;
       color: #94a3b8; font-size: 13px; text-align: center;
     }
+  .logo img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
   </style>
 </head>
 <body>
   <header>
-    <div class="logo">M</div>
+    <div class="logo">
+      <img src="logo.png" alt="Metro Logo" />
+    </div>
     <h1>Metro Staff Scanner</h1>
   </header>
 

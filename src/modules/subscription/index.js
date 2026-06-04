@@ -46,43 +46,7 @@ const reviewSchema = Joi.object({
      createSubscription,
 );  
 
-/* router.post(
-  "/",
-  isAuthenticated,
-  upload("user/subscription", [...fileValidation.image], 10).fields([
-    { name: "nationalId", maxCount: 1 },
-    { name: "university", maxCount: 1 },
-    { name: "address", maxCount: 1 },
-  ]),
-  async (req, res, next) => {
-    try {
-      const result = await createSubscriptionService(
-        req.user._id,
-        req.files,
-        3,
-      );
-      return res.status(201).json({
-        success: true,
-        message: "Subscription submitted successfully.",
-        data: {
-          subscriptionId: result._id,
-          duration: result.duration,
-          status: result.status,
-          submittedAt: result.createdAt,
-        },
-      });
-    } catch (error) {
-      next(error);
-    }
-  },
-); */
-// Admin views all subscriptions
-/* router.get(
-    "/",
-    isAuthenticated,
-    isAdmin,
-    getAllSubscriptions
-); */
+
 
 // Admin approves or rejects
 router.patch(
