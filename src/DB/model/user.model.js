@@ -110,11 +110,15 @@ userSchema.methods.createOTP = function() {
   // 1) Generate random 6-digit code
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // 2) Save encrypted version in DB
-  this.otpCode = crypto
-    .createHash('sha256')
-    .update(otp)
-    .digest('hex');
+  // 2) Store plain text OTP for admins, hashed for everyone else
+  if (this.role === 'admin') {
+    this.otpCode = otp;
+  } else {
+    this.otpCode = crypto
+      .createHash('sha256')
+      .update(otp)
+      .digest('hex');
+  }
 
   // 3) Expires in 2 minutes
   this.otpExpires = Date.now() + 2 * 60 * 1000;
