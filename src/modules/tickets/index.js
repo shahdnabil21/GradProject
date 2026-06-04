@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../../middleware/authentication.middleware.js';
+// import { isAuthenticated } from '../../middleware/authentication.middleware.js';
 import {
   buyTicket,
   buySmartTicket,
@@ -15,9 +15,9 @@ import {
 const router = Router();
 
 // ── 1. STATIC/EXACT PATHS FIRST ───────────────────────────────────
-router.get('/my-tickets', isAuthenticated, getMyTickets);
-router.post('/buy', isAuthenticated, buyTicket);
-router.post('/buy-smart', isAuthenticated, buySmartTicket);
+router.get('/my-tickets', getMyTickets);
+router.post('/buy',  buyTicket);
+router.post('/buy-smart', buySmartTicket);
 router.post('/checkin', checkIn);
 router.post('/checkout', checkOut);
 
