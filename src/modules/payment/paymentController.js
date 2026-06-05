@@ -2,7 +2,8 @@ import { processPaymentService } from "../payment/paymentService.js";
 
 export const payment = async (req, res) => {
   try {
-    const { ticketIds, paymentMethod, cardNumber, expiry, cvv } = req.body;
+    const { ticketIds, paymentMethod, cardNumber, expiry, cvv, userId: bodyUserId } = req.body;
+    const resolvedUserId = req.user?._id || req.user?.id || bodyUserId;
 
     // VALIDATION: Check ticketIds
     if (!ticketIds || !Array.isArray(ticketIds) || ticketIds.length === 0) {
@@ -32,7 +33,7 @@ export const payment = async (req, res) => {
 
     // Process the payment
     const { transaction, qrCodes, feeBreakdown, categories } = await processPaymentService({
-      userId: req.user._id,
+      userId: resolvedUserId,
       ticketIds,
       paymentMethod,
       cardNumber,
