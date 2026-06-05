@@ -75,17 +75,11 @@ export const buySmartTicketService = async (userId, fromStationId, toStationId) 
     throw error;
   }
 
-// Deduct wallet balance
-await deductFromWalletService(
-  userId,
-  category.price
-);
-
-// Create active ticket
+// Create pending ticket — payment endpoint handles wallet/card deduction
 const ticket = await Ticket.create({
   user: userId,
   category: category._id,
-  status: 'active',
+  status: 'pending_payment',
 });
 
   await ticket.populate('category');

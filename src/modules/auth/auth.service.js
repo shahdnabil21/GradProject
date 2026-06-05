@@ -11,49 +11,6 @@ const signToken = id => {
     expiresIn: process.env.JWT_EXPIRES_IN
   });
 };
-//=======signUp==============
-/* export const signUpService = async (email, password, confirmPassword, gender, dateOfBirth, name) => {
-  if (password !== confirmPassword)
-  throw new AppError('Passwords do not match!', 400);
-
-  const newUser = await User.create({
-    email,
-    password,
-    confirmPassword,
-    gender,
-    dateOfBirth,
-    name
-  });
-
-  //2)====Generate OTP and save to DB
-  const otp = newUser.createOTP();
-  await newUser.save({ validateBeforeSave: false });
-
-// 3) Send OTP email
-  try {
-    await sendEmail({
-      email: newUser.email,
-      subject: 'Metro App — Verify Your Account',
-      message:
-        `Welcome to Metro App! 🎉\n\n` +
-        `Your verification code is:\n\n` +
-        `   ${otp}\n\n` +
-        `This code expires in 2 minutes.\n` +
-        `Please verify your account to continue.`
-    });
-  } catch (err) {
-    // if email fails → delete user so they can signup again
-    await User.findByIdAndDelete(newUser._id);
-    throw new AppError('Error sending verification email. Please try again.', 500);
-  }
-
-
-  newUser.password = undefined;
-  return {
-    user: newUser,
-    message: 'Account created! Please check your email for the verification code.'
-  };
-}; */
 
 //sign up 2=============================
 const ADMIN_EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@admin\.eg\.com$/;
@@ -136,11 +93,7 @@ export const verifyOtpService = async (email, otp) => {
   // 4) No token here — just confirm verification ✅
   return { message: 'Account verified successfully! You can now login.' };
 };
-
-
-
 //resend OTP
-
 export const resendOtpService = async (email) => {
   const user = await User.findOne({ email });
 
@@ -175,10 +128,7 @@ export const resendOtpService = async (email) => {
     await user.save({ validateBeforeSave: false });
     throw new AppError('Error sending email. Try again later.', 500);
   }
-
-
 };
-
 //==========Login============
 export const logInService = async (email, password) => {
    // 1) Check if email and password exist
@@ -202,9 +152,6 @@ export const logInService = async (email, password) => {
   const token = signToken(user._id);
   return { token, message: 'Logged in successfully!' };
 };
-
-
-
 // ── FORGOT PASSWORD ⭐ ────────────────────────────────
 export const forgotPasswordService = async (email, protocol, host) => {
   // 1) Find user by email
@@ -240,7 +187,6 @@ export const forgotPasswordService = async (email, protocol, host) => {
   } 
 
 };
-
 
 // ── RESET PASSWORD ⭐ ─────────────────────────────────
 export const resetPasswordService = async (email,otp, password, confirmPassword) => {
