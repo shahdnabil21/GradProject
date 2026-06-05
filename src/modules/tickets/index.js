@@ -10,11 +10,13 @@ import {
   checkOutById,
   getTicketById,
   getTicketQr,
+  getCategories,
 } from './ticketsController.js';
 
 const router = Router();
 
 // ── 1. STATIC/EXACT PATHS FIRST ───────────────────────────────────
+router.get('/categories', getCategories);
 router.get('/my-tickets', getMyTickets);
 router.post('/buy',  buyTicket);
 router.post('/buy-smart', buySmartTicket);

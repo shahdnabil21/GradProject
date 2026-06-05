@@ -16,18 +16,13 @@ export const buyTicketService = async (userId, categoryId) => {
     error.statusCode = 404;
     throw error;
   }
-// Deduct ticket price from wallet
-await deductFromWalletService(
-  userId,
-  category.price
-);
 
-// Create paid ticket
-const ticket = await Ticket.create({
-  user: userId,
-  category: categoryId,
-  status: 'active',
-});
+  // Create pending ticket — payment endpoint handles wallet/card deduction
+  const ticket = await Ticket.create({
+    user: userId,
+    category: categoryId,
+    status: 'pending_payment',
+  });
   await ticket.populate('category');
   return { ticket };
 };

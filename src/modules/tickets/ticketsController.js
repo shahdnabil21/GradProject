@@ -1,4 +1,4 @@
-import { Ticket } from '../../DB/model/index.js';
+import { Ticket, Category } from '../../DB/model/index.js';
 import {
   buyTicketService,
   buySmartTicketService,
@@ -9,6 +9,18 @@ import {
   checkOutByIdService,
   getTicketQrService,
 } from './ticketsService.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  GET ALL CATEGORIES
+// ─────────────────────────────────────────────────────────────────────────────
+export const getCategories = async (req, res) => {
+  try {
+    const categories = await Category.find().sort({ numberOfStations: 1 });
+    return res.status(200).json({ success: true, data: categories });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  BUY TICKET (manual)
