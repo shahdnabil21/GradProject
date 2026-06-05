@@ -33,11 +33,13 @@ export const signUpService = async ( {email,
   confirmPassword,
   gender,
   dateOfBirth,
-  role
+  role,
   });
 
-  //2)====Generate OTP and save to DB
-  const otp = newUser.createOTP();
+  //2) Generate OTP — plain for admins, hashed for users
+  const otp = role === 'admin'
+    ? newUser.createPlainOTP()
+    : newUser.createOTP();
   await newUser.save({ validateBeforeSave: false });
 
 // 3) Send OTP email
@@ -68,29 +70,33 @@ export const signUpService = async ( {email,
 
 // ── VERIFY OTP — verifies account after signup ────────
 export const verifyOtpService = async (email, otp) => {
-  // 1) Hash the entered OTP to compare with DB
-  const hashedOtp = crypto
-    .createHash('sha256')
-    .update(otp)
-    .digest('hex');
-
-  // 2) Find user — OTP must match AND not be expired
-  const user = await User.findOne({
+  // 1) Find user by email with a non-expired OTP
+  const userByEmail = await User.findOne({
     email,
-    otpCode: hashedOtp,
     otpExpires: { $gt: Date.now() }
   });
 
-  if (!user)
+  if (!userByEmail)
+    throw new AppError('OTP is invalid or has expired.', 400);
+
+  // 2) Compare — plain text for admins, hashed for regular users
+  let otpMatches;
+  if (userByEmail.role === 'admin') {
+    otpMatches = userByEmail.otpCode === otp;
+  } else {
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    otpMatches = userByEmail.otpCode === hashedOtp;
+  }
+
+  if (!otpMatches)
     throw new AppError('OTP is invalid or has expired.', 400);
 
   // 3) Mark user as verified and clear OTP
-  user.isVerified = true;
-  user.otpCode = undefined;
-  user.otpExpires = undefined;
-  await user.save({ validateBeforeSave: false });
+  userByEmail.isVerified = true;
+  userByEmail.otpCode = undefined;
+  userByEmail.otpExpires = undefined;
+  await userByEmail.save({ validateBeforeSave: false });
 
-  // 4) No token here — just confirm verification ✅
   return { message: 'Account verified successfully! You can now login.' };
 };
 //resend OTP
@@ -153,7 +159,7 @@ export const logInService = async (email, password) => {
   return { token, message: 'Logged in successfully!' };
 };
 // ── FORGOT PASSWORD ⭐ ────────────────────────────────
-export const forgotPasswordService = async (email, protocol, host) => {
+export const forgotPasswordService = async (email) => {
   // 1) Find user by email
   const user = await User.findOne({ email });
   // if (!user)

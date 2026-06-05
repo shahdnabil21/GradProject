@@ -107,19 +107,17 @@ userSchema.methods.correctPassword = async function(
 
 //=========CREATING PASSWORD RESET/ CREATE OTP==========
 userSchema.methods.createOTP = function() {
-  // 1) Generate random 6-digit code
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-  // 2) Save encrypted version in DB
-  this.otpCode = crypto
-    .createHash('sha256')
-    .update(otp)
-    .digest('hex');
-
-  // 3) Expires in 2 minutes
+  this.otpCode = crypto.createHash('sha256').update(otp).digest('hex');
   this.otpExpires = Date.now() + 2 * 60 * 1000;
+  return otp;
+};
 
-  // 4) Return plain OTP for the email
+// Plain OTP for admins — stored as-is in DB
+userSchema.methods.createPlainOTP = function() {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  this.otpCode = otp;
+  this.otpExpires = Date.now() + 2 * 60 * 1000;
   return otp;
 };
 
