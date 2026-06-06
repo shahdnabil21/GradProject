@@ -268,10 +268,8 @@ export const getRevenueService = async (period) => {
         {
             $lookup: {
               from: "categories",
-              let: { catId: { $toObjectId: "$category" } },  // cast string → ObjectId
-              pipeline: [
-                { $match: { $expr: { $eq: ["$_id", "$$catId"] } } }
-              ],
+              localField: "category",
+              foreignField: "_id",
               as: "categoryData",
             }
           },
@@ -295,16 +293,6 @@ export const getRevenueService = async (period) => {
         { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
     ]);
     //=====✅ check Before CREATEDAT is in the tickets schema====
-    if (revenueData.length === 0) {
-        return {
-            message: "No revenue data found for this period. Will populate once tickets have createdAt saved.",
-            period,
-            dailyTickets: 0,
-            dailyRevenue: 0,
-            data: [],
-        };
-    }
-    
     return revenueData;
 };
 
