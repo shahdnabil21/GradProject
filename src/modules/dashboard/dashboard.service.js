@@ -1,5 +1,5 @@
 
-import {Analytics, Ticket, User, Transaction} from "../../DB/model/index.js";
+import {Analytics, Ticket, User} from "../../DB/model/index.js";
 import {getDateRange} from "../../utils/dateRange.utilis.js"; 
 
 //=====Service one to get all the important information the admin want As OverView=========
@@ -16,30 +16,14 @@ export const getOverviewService = async (period) => {
         return { period, totalTickets, totalRevenue, source: "snapshot" };
     }
 
-    // Fallback — count tickets and sum service fees from completed transactions
-    const [totalTickets, newUsers, revenueResult] = await Promise.all([
+    // Fallback — count paid tickets directly (every paid ticket = 0.5 EGP revenue)
+    const [totalTickets, newUsers, paidTickets] = await Promise.all([
         Ticket.countDocuments({}),
         User.countDocuments({}),
-        Transaction.aggregate([
-            { $match: { status: "completed" } },
-            {
-                $lookup: {
-                    from: "tickets",
-                    localField: "_id",
-                    foreignField: "transaction",
-                    as: "tickets",
-                },
-            },
-            {
-                $group: {
-                    _id: null,
-                    totalRevenue: { $sum: { $multiply: [{ $size: "$tickets" }, 0.5] } },
-                },
-            },
-        ]),
+        Ticket.countDocuments({ status: { $ne: "pending_payment" } }),
     ]);
 
-    const totalRevenue = revenueResult[0]?.totalRevenue ?? 0;
+    const totalRevenue = paidTickets * 0.5;
 
     return {
         period,
@@ -281,20 +265,10 @@ export const getRevenueService = async (period) => {
             source:       "snapshot",
         }));
     }
-    // Fallback — join tickets to calculate serviceFee (0.5 per ticket) for all transactions
-    const revenueData = await Transaction.aggregate([
+    // Fallback — group paid tickets by day, each ticket = 0.5 EGP revenue
+    const revenueData = await Ticket.aggregate([
         {
-            $match: {
-                status: "completed",
-            },
-        },
-        {
-            $lookup: {
-                from: "tickets",
-                localField: "_id",
-                foreignField: "transaction",
-                as: "tickets",
-            },
+            $match: { status: { $ne: "pending_payment" } },
         },
         {
             $group: {
@@ -303,10 +277,8 @@ export const getRevenueService = async (period) => {
                     month: { $month: "$createdAt" },
                     year:  { $year: "$createdAt" },
                 },
-                dailyRevenue: {
-                    $sum: { $multiply: [{ $size: "$tickets" }, 0.5] },
-                },
-                dailyTickets: { $sum: { $size: "$tickets" } },
+                dailyRevenue: { $sum: 0.5 },
+                dailyTickets: { $sum: 1 },
             },
         },
         { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
