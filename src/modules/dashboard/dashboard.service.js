@@ -265,15 +265,16 @@ export const getRevenueService = async (period) => {
     // Fallback — group by day using createdAt
     const revenueData = await Ticket.aggregate([
         { $match: { createdAt: { $gte: start, $lte: end } } },
-          {
-            // join ticket with its category to get price
+        {
             $lookup: {
-                from:         "categories", // MongoDB collection name
-                localField:   "category",
-                foreignField: "_id",
-                as:           "categoryData",
+              from: "categories",
+              let: { catId: { $toObjectId: "$category" } },  // cast string → ObjectId
+              pipeline: [
+                { $match: { $expr: { $eq: ["$_id", "$$catId"] } } }
+              ],
+              as: "categoryData",
             }
-        },
+          },
          {
             $unwind: {
                 path: "$categoryData",
