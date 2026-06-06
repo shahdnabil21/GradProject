@@ -10,6 +10,7 @@ export const getOverviewService = async (period) => {
         date: { $gte: start, $lte: end }
     });
 
+
     if (snapshots.length > 0) {
         const totalTickets = snapshots.reduce((sum, s) => sum + s.totalTicketsSold, 0);
         const totalRevenue = snapshots.reduce((sum, s) => sum + s.totalRevenue, 0);

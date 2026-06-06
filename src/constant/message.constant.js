@@ -9,6 +9,7 @@ const generateMessage = (value) => ({
     failToDelete:  `fail to delete ${value}`,
 });
 
+
 export const MESSAGES = {
     user:      generateMessage("User"),
     ticket:    generateMessage("Ticket"),

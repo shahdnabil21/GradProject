@@ -34,10 +34,12 @@ export const login = catchAsync(async (req, res, next) => {
     req.body.password, 
     );
    if (!result) return; // next(error) was already called in service
-    res.status(200).json({ 
+    res.status(200).json({
      status: 'success',
      message: result.message,
-     token: result.token       // JWT token returned ✅
+     token: result.token,
+     name: result.name,
+     email: result.email,
    });
 });
 

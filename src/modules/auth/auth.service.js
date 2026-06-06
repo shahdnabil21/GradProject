@@ -156,7 +156,7 @@ export const logInService = async (email, password) => {
 
   // 5) All good — return token directly ✅
   const token = signToken(user._id);
-  return { token, message: 'Logged in successfully!' };
+  return { token, message: 'Logged in successfully!', name: user.name, email: user.email };
 };
 // ── FORGOT PASSWORD ⭐ ────────────────────────────────
 export const forgotPasswordService = async (email) => {

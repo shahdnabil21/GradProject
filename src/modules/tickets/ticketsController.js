@@ -138,8 +138,6 @@ export const checkOut = async (req, res) => {
     });
   }
 };
-
-
 export const getTicketById = async (req, res) => {
   try {
     console.log("Searching ticket:", req.params.id);
@@ -158,7 +156,6 @@ export const getTicketById = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 //  CHECK IN BY URL PARAM  POST /ticket/:id/checkin
 // ─────────────────────────────────────────────────────────────────────────────

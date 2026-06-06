@@ -15,6 +15,11 @@ const router = Router();
 //Protect all routes
 router.use(isAuthenticated);
 
+// ⭐ get logged-in user profile
+router.get('/me', (req, res) => {
+  res.status(200).json({ status: 'success', data: { name: req.user.name, email: req.user.email } });
+});
+
 // ⭐ deactivate route
 router.delete('/deactivate', deactivateAccount);
 
