@@ -14,6 +14,10 @@ const transactionSchema = new Schema({
     type: Number,
     required: true,
   },
+  serviceFee: {
+    type: Number,
+    default: 0,
+  },
   status: {
     type: String,
     enum: ['pending', 'completed', 'failed'],

@@ -1,5 +1,5 @@
 
-import {Analytics, Ticket, User} from "../../DB/model/index.js";
+import {Analytics, Ticket, User, Transaction} from "../../DB/model/index.js";
 import {getDateRange} from "../../utils/dateRange.utilis.js"; 
 
 //=====Service one to get all the important information the admin want As OverView=========
@@ -262,37 +262,44 @@ export const getRevenueService = async (period) => {
             source:       "snapshot",
         }));
     }
-    // Fallback — group by day using createdAt
-    const revenueData = await Ticket.aggregate([
-        { $match: { createdAt: { $gte: start, $lte: end } } },
+    // Fallback — join tickets to calculate serviceFee (0.5 per ticket) for all transactions
+    const revenueData = await Transaction.aggregate([
+        {
+            $match: {
+                status: "completed",
+                createdAt: { $gte: start, $lte: end },
+            },
+        },
         {
             $lookup: {
-              from: "categories",
-              localField: "category",
-              foreignField: "_id",
-              as: "categoryData",
-            }
-          },
-         {
-            $unwind: {
-                path: "$categoryData",
-                preserveNullAndEmptyArrays: true,
-            }
+                from: "tickets",
+                localField: "_id",
+                foreignField: "transaction",
+                as: "tickets",
+            },
         },
         {
             $group: {
                 _id: {
-                    day:   { $dayOfMonth: "$createdAt" }, // ← was purchasedAt
+                    day:   { $dayOfMonth: "$createdAt" },
                     month: { $month: "$createdAt" },
                     year:  { $year: "$createdAt" },
                 },
-                dailyTickets: { $sum: 1 },
-                dailyRevenue: { $sum: "$categoryData.price" },
+                dailyRevenue: {
+                    $sum: {
+                        $cond: [
+                            { $gt: ["$serviceFee", 0] },
+                            "$serviceFee",
+                            { $multiply: [{ $size: "$tickets" }, 0.5] },
+                        ],
+                    },
+                },
+                dailyTickets: { $sum: { $size: "$tickets" } },
             },
         },
         { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
     ]);
-    //=====✅ check Before CREATEDAT is in the tickets schema====
+
     return revenueData;
 };
 
