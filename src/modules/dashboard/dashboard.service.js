@@ -18,7 +18,7 @@ export const getOverviewService = async (period) => {
 
     // Fallback — count paid tickets directly (every paid ticket = 0.5 EGP revenue)
     const [totalTickets, newUsers, paidTickets] = await Promise.all([
-        Ticket.countDocuments({}),
+        Ticket.countDocuments({ status: { $ne: "pending_payment" } }),
         User.countDocuments({}),
         Ticket.countDocuments({ status: { $ne: "pending_payment" } }),
     ]);
