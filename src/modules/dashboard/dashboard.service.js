@@ -16,16 +16,35 @@ export const getOverviewService = async (period) => {
         return { period, totalTickets, totalRevenue, source: "snapshot" };
     }
 
-    // Fallback — use createdAt instead of purchasedAt
-    const [totalTickets, newUsers] = await Promise.all([
-        Ticket.countDocuments({ }),
-        User.countDocuments({ }),
+    // Fallback — count tickets and sum service fees from completed transactions
+    const [totalTickets, newUsers, revenueResult] = await Promise.all([
+        Ticket.countDocuments({}),
+        User.countDocuments({}),
+        Transaction.aggregate([
+            { $match: { status: "completed" } },
+            {
+                $lookup: {
+                    from: "tickets",
+                    localField: "_id",
+                    foreignField: "transaction",
+                    as: "tickets",
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalRevenue: { $sum: { $multiply: [{ $size: "$tickets" }, 0.5] } },
+                },
+            },
+        ]),
     ]);
+
+    const totalRevenue = revenueResult[0]?.totalRevenue ?? 0;
 
     return {
         period,
         totalTickets,
-        totalRevenue: 0, // no price field in ticket — needs category lookup
+        totalRevenue,
         newUsers,
         source: "live",
     };
@@ -267,7 +286,6 @@ export const getRevenueService = async (period) => {
         {
             $match: {
                 status: "completed",
-                createdAt: { $gte: start, $lte: end },
             },
         },
         {
@@ -286,13 +304,7 @@ export const getRevenueService = async (period) => {
                     year:  { $year: "$createdAt" },
                 },
                 dailyRevenue: {
-                    $sum: {
-                        $cond: [
-                            { $gt: ["$serviceFee", 0] },
-                            "$serviceFee",
-                            { $multiply: [{ $size: "$tickets" }, 0.5] },
-                        ],
-                    },
+                    $sum: { $multiply: [{ $size: "$tickets" }, 0.5] },
                 },
                 dailyTickets: { $sum: { $size: "$tickets" } },
             },
